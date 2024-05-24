@@ -5,7 +5,6 @@ import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
 import https from 'https'
 import path from 'path'
-import sharp from 'sharp' // Import sharp for image processing
 
 function createWindow(): void {
   // Create the browser window.
@@ -120,13 +119,8 @@ app.whenReady().then(() => {
             // Load the image data directly
             const imageBuffer = await fetchImage(imageUrl)
 
-            // Resize and reduce quality of the image using sharp
-            const resizedImageBuffer = await sharp(imageBuffer)
-              .jpeg({ quality: 60 }) // Adjust the quality as needed
-              .toBuffer()
-
             // Convert ArrayBuffer to Buffer
-            const buffer = Buffer.from(resizedImageBuffer)
+            const buffer = Buffer.from(imageBuffer)
 
             // Create a nativeImage object from the buffer
             const image = nativeImage.createFromBuffer(buffer)

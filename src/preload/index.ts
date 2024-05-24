@@ -39,6 +39,7 @@ if (process.contextIsolated) {
 }
 
 ipcRenderer.on('context-menu-clicked', (event, imageUrl) => {
+  console.log(event)
   const image = nativeImage.createFromDataURL(imageUrl)
   clipboard.writeImage(image)
 })

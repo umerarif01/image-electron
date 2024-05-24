@@ -166,10 +166,12 @@ function App(): JSX.Element {
       window.api.downloadImage(imageUrl, prompt)
       window.api.onDownloadComplete((event, downloadPath) => {
         setIsDownloading(false)
+        console.log(event)
         alert(`Image downloaded to: ${downloadPath}`)
       })
       window.api.onDownloadError((event, errorMessage) => {
         setIsDownloading(false)
+        console.log(event)
         alert(`Failed to download image: ${errorMessage}`)
       })
     } catch (error) {
