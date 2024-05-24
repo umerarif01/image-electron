@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from './components/Button'
 import TextArea from './components/TextArea'
 import Icon from './components/Icon'
@@ -80,20 +80,26 @@ function App(): JSX.Element {
   const handleGenerateImage = async () => {
     setGenerating(true)
     try {
-      const updatedInputs = await Promise.all(
-        inputs.map(async (input) => {
-          if (!input.text.trim()) {
-            return input // Skip empty texts
-          }
-          const prompt = createPrompt(input.text)
-          const imageUrl = await generateImage(prompt, selectedDALLE)
-          return { ...input, imageUrl: imageUrl }
-        })
-      )
-      setInputs(updatedInputs)
+      const updatedInputs = [...inputs] // Create a copy of the inputs array
+
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i]
+
+        if (!input.text.trim()) {
+          continue // Skip empty texts
+        }
+
+        const prompt = createPrompt(input.text)
+        const imageUrl = await generateImage(prompt, selectedDALLE)
+
+        updatedInputs[i] = { ...input, imageUrl: imageUrl }
+        setInputs([...updatedInputs]) // Update state with the new image URL
+
+        await new Promise((resolve) => setTimeout(resolve, 1000)) // Add a 1 second delay between each request
+      }
     } catch (error) {
       console.error('Error generating images:', error)
-      setError('An error occured! Please try again!')
+      setError('An error occurred! Please try again!')
     } finally {
       setGenerating(false)
     }
@@ -173,10 +179,48 @@ function App(): JSX.Element {
     }
   }
 
+  const [copying, setCopying] = useState(false)
+  const [copied, setCopied] = useState(false)
+
   const handleContextMenu = (e, imageUrl) => {
     e.preventDefault()
-    window.api.showContextMenu(imageUrl)
+
+    try {
+      window.api.showContextMenu(imageUrl)
+    } catch (error) {
+      console.log(error)
+    }
   }
+
+  const [mounted, setMounted] = useState(true)
+
+  useEffect(() => {
+    const handleImageCopied = () => {
+      console.log('Image copied!')
+      if (mounted) {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 3000)
+      }
+    }
+
+    const handleImageCopying = () => {
+      console.log('Image copying!')
+      if (mounted) {
+        setCopying(true)
+        setTimeout(() => setCopying(false), 4000)
+      }
+    }
+
+    // Subscribe to events
+    window.api.onImageCopied(handleImageCopied)
+    window.api.onImageCopying(handleImageCopying)
+
+    // Cleanup function
+    return () => {
+      // Set mounted to false to prevent state updates after unmounting
+      setMounted(false)
+    }
+  }, [])
 
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -206,20 +250,22 @@ function App(): JSX.Element {
                     </span>
                   ) : (
                     <>
-                      <button
-                        color="black"
-                        className="h-10 text-sm border-slate-200 bg-white text-green-500 font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100 absolute z-10 bottom-[40%] inline-flex items-center justify-center whitespace-nowrap border rounded px-4 py-2"
-                        disabled={false}
-                        onClick={() => downloadImage(input.imageUrl, input.text)}
-                      >
-                        {downloading ? (
-                          <span>
-                            <Loader color="white" /> Downloading image...
-                          </span>
-                        ) : (
-                          'Download Image'
-                        )}
-                      </button>
+                      <div className="absolute z-10 bottom-[40%] flex space-x-2">
+                        <button
+                          color="black"
+                          className="h-10 text-xs border-slate-200 bg-white text-green-500 font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100 inline-flex items-center justify-center whitespace-nowrap border rounded px-4 py-2"
+                          disabled={false}
+                          onClick={() => downloadImage(input.imageUrl, input.text)}
+                        >
+                          {downloading ? (
+                            <span>
+                              <Loader color="white" /> Downloading image...
+                            </span>
+                          ) : (
+                            'Download'
+                          )}
+                        </button>
+                      </div>
 
                       <img
                         alt="Generated"
@@ -313,6 +359,17 @@ function App(): JSX.Element {
             </Button>
 
             {error && <p className="text-red-400 text-sm font-semibold text-center">{error}</p>}
+            {copying && (
+              <p className="text-sm font-semibold text-center">
+                Copying image! Please wait for a few seconds
+              </p>
+            )}
+
+            {copied && (
+              <div className="text-sm font-semibold text-center text-green-500">
+                <p>Image copied!</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -7,7 +7,18 @@ const api = {
     ipcRenderer.on('download-complete', (event, downloadPath) => callback(event, downloadPath)),
   onDownloadError: (callback) =>
     ipcRenderer.on('download-error', (event, errorMessage) => callback(event, errorMessage)),
-  showContextMenu: (imageUrl) => ipcRenderer.send('show-context-menu', imageUrl)
+  showContextMenu: (imageUrl) => ipcRenderer.send('show-context-menu', imageUrl),
+  copyImage: (imageUrl) => ipcRenderer.invoke('copy-image', imageUrl),
+  onCopyComplete: (callback) =>
+    ipcRenderer.on('copy-complete', (event, success) => callback(event, success)),
+  onCopyError: (callback) =>
+    ipcRenderer.on('copy-error', (event, errorMessage) => callback(event, errorMessage)),
+  onImageCopying: (callback) => {
+    ipcRenderer.on('image-copying', callback)
+  },
+  onImageCopied: (callback) => {
+    ipcRenderer.on('image-copied', callback)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

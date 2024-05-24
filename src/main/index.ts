@@ -5,7 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
 import https from 'https'
 import path from 'path'
-import axios from 'axios'
+import sharp from 'sharp' // Import sharp for image processing
 
 function createWindow(): void {
   // Create the browser window.
@@ -77,15 +77,65 @@ app.whenReady().then(() => {
       })
   })
 
+  ipcMain.handle('copy-image', async (event, imageUrl) => {
+    try {
+      // Load the image data directly
+      const imageBuffer = await fetchImage(imageUrl)
+
+      // Convert ArrayBuffer to Buffer
+      const buffer = Buffer.from(imageBuffer)
+
+      // Create a nativeImage object from the buffer
+      const image = nativeImage.createFromBuffer(buffer)
+
+      // Write the image to the clipboard
+      clipboard.writeImage(image)
+
+      // Send a success message
+      event.sender.send('copy-complete', true)
+    } catch (error) {
+      console.error('Error copying image:', error)
+      event.sender.send('copy-error', error)
+    }
+  })
+
+  // Function to fetch image data
+  const fetchImage = async (imageUrl) => {
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`)
+    }
+    return response.arrayBuffer()
+  }
+
   ipcMain.on('show-context-menu', async (event, imageUrl) => {
     const template = [
       {
         label: 'Copy Image',
         click: async () => {
           try {
-            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' })
-            const image = nativeImage.createFromBuffer(Buffer.from(response.data))
+            // Emit a custom event to indicate that the image is being copied
+            event.sender.send('image-copying')
+
+            // Load the image data directly
+            const imageBuffer = await fetchImage(imageUrl)
+
+            // Resize and reduce quality of the image using sharp
+            const resizedImageBuffer = await sharp(imageBuffer)
+              .jpeg({ quality: 60 }) // Adjust the quality as needed
+              .toBuffer()
+
+            // Convert ArrayBuffer to Buffer
+            const buffer = Buffer.from(resizedImageBuffer)
+
+            // Create a nativeImage object from the buffer
+            const image = nativeImage.createFromBuffer(buffer)
+
+            // Write the image to the clipboard
             clipboard.writeImage(image)
+
+            // Emit a custom event to indicate that the image is copied
+            event.sender.send('image-copied')
           } catch (error) {
             console.error('Error copying image:', error)
           }
@@ -98,7 +148,6 @@ app.whenReady().then(() => {
       menu.popup({ window: win })
     }
   })
-
   createWindow()
 
   app.on('activate', function () {
