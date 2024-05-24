@@ -1,10 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Menu, clipboard, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
 import https from 'https'
 import path from 'path'
+import axios from 'axios'
 
 function createWindow(): void {
   // Create the browser window.
@@ -74,6 +75,28 @@ app.whenReady().then(() => {
         console.error('Error downloading image:', err)
         event.sender.send('download-error', err.message)
       })
+  })
+
+  ipcMain.on('show-context-menu', async (event, imageUrl) => {
+    const template = [
+      {
+        label: 'Copy Image',
+        click: async () => {
+          try {
+            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' })
+            const image = nativeImage.createFromBuffer(Buffer.from(response.data))
+            clipboard.writeImage(image)
+          } catch (error) {
+            console.error('Error copying image:', error)
+          }
+        }
+      }
+    ]
+    const menu = Menu.buildFromTemplate(template)
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+      menu.popup({ window: win })
+    }
   })
 
   createWindow()

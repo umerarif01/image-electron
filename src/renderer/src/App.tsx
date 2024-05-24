@@ -173,6 +173,11 @@ function App(): JSX.Element {
     }
   }
 
+  const handleContextMenu = (e, imageUrl) => {
+    e.preventDefault()
+    window.api.showContextMenu(imageUrl)
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="max-w-screen-lg mx-auto p-8">
@@ -220,6 +225,7 @@ function App(): JSX.Element {
                         alt="Generated"
                         src={input.imageUrl}
                         className="w-full h-full object-cover group-hover:opacity-80"
+                        onContextMenu={(e) => handleContextMenu(e, input.imageUrl)}
                       />
                     </>
                   )}
