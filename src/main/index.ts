@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
 import https from 'https'
 import path from 'path'
+import http from 'http'
 
 function createWindow(): void {
   // Create the browser window.
@@ -74,6 +75,59 @@ app.whenReady().then(() => {
         console.error('Error downloading image:', err)
         event.sender.send('download-error', err.message)
       })
+  })
+
+  // Function to download a single image
+  const downloadImage = (url, prompt) => {
+    return new Promise((resolve, reject) => {
+      const protocol = url.startsWith('https') ? https : http
+      const sanitizedPrompt = prompt.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const fileName = `${sanitizedPrompt}_${Date.now()}.jpg`
+      const filePath = path.join(app.getPath('downloads'), fileName)
+
+      fs.mkdir(path.dirname(filePath), { recursive: true }, (err) => {
+        if (err) return reject(err)
+
+        const file = fs.createWriteStream(filePath)
+        protocol
+          .get(url, (response) => {
+            if (response.statusCode !== 200) {
+              return reject(new Error(`Failed to get '${url}' (${response.statusCode})`))
+            }
+
+            response.pipe(file)
+
+            file.on('finish', () => {
+              file.close(() => {
+                resolve(filePath)
+              })
+            })
+          })
+          .on('error', (err) => {
+            fs.unlink(filePath, () => reject(err))
+          })
+      })
+    })
+  }
+
+  // Function to download multiple images
+  const downloadImages = async (images) => {
+    const downloadPaths = await Promise.all(
+      images.map(async ({ imageUrl, prompt }) => {
+        return await downloadImage(imageUrl, prompt)
+      })
+    )
+    return downloadPaths
+  }
+
+  // Handle the 'download-images' event
+  ipcMain.handle('download-images', async (event, images) => {
+    try {
+      const downloadPaths = await downloadImages(images)
+      event.sender.send('download-complete', downloadPaths)
+    } catch (error) {
+      event.sender.send('download-error', error)
+    }
   })
 
   ipcMain.handle('copy-image', async (event, imageUrl) => {

@@ -90,10 +90,18 @@ function App(): JSX.Element {
         }
 
         const prompt = createPrompt(input.text)
-        const imageUrl = await generateImage(prompt, selectedDALLE)
 
-        updatedInputs[i] = { ...input, imageUrl: imageUrl }
-        setInputs([...updatedInputs]) // Update state with the new image URL
+        try {
+          const imageUrl = await generateImage(prompt, selectedDALLE)
+          updatedInputs[i] = { ...input, imageUrl: imageUrl }
+          setInputs([...updatedInputs]) // Update state with the new image URL
+          setError('')
+        } catch (error) {
+          console.error(`Error generating image for input ${i}:`, error)
+          setError('An error occured! Skipping this image')
+          // Optionally, you can set some default image URL or leave it empty
+          updatedInputs[i] = { ...input, imageUrl: defaultImage }
+        }
 
         await new Promise((resolve) => setTimeout(resolve, 1000)) // Add a 1 second delay between each request
       }
@@ -178,6 +186,41 @@ function App(): JSX.Element {
       setIsDownloading(false)
       console.error('Error downloading image:', error)
       setError('An error occured! Please try again!')
+    }
+  }
+
+  const downloadAllImages = async () => {
+    try {
+      setIsDownloading(true)
+
+      if (!window) return
+
+      // Filter out inputs with the default image URL and map to the format expected by downloadImages
+      const images = inputs
+        .filter((input) => input.imageUrl !== defaultImage)
+        .map((input) => ({
+          imageUrl: input.imageUrl,
+          prompt: input.text // Assuming 'text' is used as the 'prompt' here
+        }))
+
+      // Send all image URLs and prompts to the Electron main process
+      window.api.downloadImages(images)
+
+      window.api.onDownloadComplete((event, downloadPaths) => {
+        setIsDownloading(false)
+        console.log(event)
+        alert(`Images downloaded to: ${downloadPaths.join(', ')}`)
+      })
+
+      window.api.onDownloadError((event, errorMessage) => {
+        setIsDownloading(false)
+        console.log(event)
+        alert(`Failed to download images: ${errorMessage}`)
+      })
+    } catch (error) {
+      setIsDownloading(false)
+      console.error('Error downloading images:', error)
+      setError('An error occurred! Please try again!')
     }
   }
 
@@ -353,6 +396,21 @@ function App(): JSX.Element {
                 </span>
               ) : (
                 'Refine Description'
+              )}
+            </Button>
+
+            <Button
+              color="white"
+              className="w-full"
+              onClick={downloadAllImages}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <span>
+                  <Loader color="white" /> Downloading...
+                </span>
+              ) : (
+                'Download All Images'
               )}
             </Button>
 

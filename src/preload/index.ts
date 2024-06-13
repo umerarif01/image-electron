@@ -3,8 +3,9 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 const api = {
   downloadImage: (imageUrl, prompt) => ipcRenderer.invoke('download-image', { imageUrl, prompt }),
+  downloadImages: (images) => ipcRenderer.invoke('download-images', images),
   onDownloadComplete: (callback) =>
-    ipcRenderer.on('download-complete', (event, downloadPath) => callback(event, downloadPath)),
+    ipcRenderer.on('download-complete', (event, downloadPaths) => callback(event, downloadPaths)),
   onDownloadError: (callback) =>
     ipcRenderer.on('download-error', (event, errorMessage) => callback(event, errorMessage)),
   showContextMenu: (imageUrl) => ipcRenderer.send('show-context-menu', imageUrl),
